@@ -15,6 +15,7 @@
 #include <list>
 #include <vector>
 #include <initializer_list>
+#include <iterator>
 #include <iostream>
 #include <omp.h>
 
@@ -39,15 +40,15 @@ namespace NN
 		
 		std::pair<int_t, int_t> input_shape;
 
-		Mat inputs(input_shape.first, input_shape.second);
+		Mat inputs;
 
 		int_t num_outputs;
 
-		Vec outputs(num_outputs);
+		Vec outputs;
 
-		Vec target(num_outputs);
+		Vec target;
 
-		std::list<Layer<update, updateArgs>> layers;
+		std::list<Layer<update, updateArgs...>> layers;
 
 		std::list<std::pair<int_t, int_t>> layer_input_shapes;
 
@@ -55,7 +56,7 @@ namespace NN
 
 		std::function<Vec(Vec,Vec)> vector_loss_derivative;
 
-		Vec loss_deriv(num_outputs);
+		Vec loss_deriv;
 
 		double scalar_loss;
 
@@ -76,36 +77,55 @@ namespace NN
 										vector_loss_derivative(VECTOR_LOSS_DERIVATIVE[loss])
 
 		{
-			Layer<update, updateArgs> finalLayer(input_shape, num_outputs, activation);
-			layers {finalLayer};
+			Layer<update, updateArgs...> finalLayer(input_shape, num_outputs, activation);
+			layers({finalLayer});
 
-			layer_input_shapes {input_shape};
+			layer_input_shapes({input_shape});
 		};
 
-		Network(std::initializer_list<Layer<update, updateArgs>> _layers) : layers(_layers) 
+		Network(std::initializer_list<Layer<update, updateArgs...>> _layers) : layers(_layers) 
 		{
 			for(const auto& it : layers){
 				layer_input_shapes.push_back(it.getInputShape());
 			}
-			input_shape = layer_input_shapes[0];
+			input_shape = layer_input_shapes.front();
 
-			num_outputs = layer_input_shapes.back().second;
+			num_outputs = layers.back().getOutputSize();
 		};
 
 		Network(std::string activation,
 				std::string loss,
-				std::initializer_list<Layer<update, updateArgs>> _layers) : layers(_layers),
+				std::initializer_list<Layer<update, updateArgs...>> _layers) : layers(_layers),
 														vector_loss_func(VECTOR_LOSS[loss]),
 														vector_loss_derivative(VECTOR_LOSS_DERIVATIVE[loss])
 
 		{
-			for(const auto& it : layers){
+			for(auto& it : layers){
 				layer_input_shapes.push_back(it.getInputShape());
+				it.setActivation(activation);
 			}
-			input_shape = layer_input_shapes[0];
+			input_shape = layer_input_shapes.front();
 
-			num_outputs = layer_input_shapes.back().second;
+			num_outputs = layers.back().getOutputSize();
 		};
+
+		Network(std::string activation,
+				std::string loss,
+				const std::list<std::pair<int_t, int_t>> _layer_input_shapes) :
+														layer_input_shapes(_layer_input_shapes),
+														vector_loss_func(VECTOR_LOSS[loss]),
+														vector_loss_derivative(VECTOR_LOSS_DERIVATIVE[loss])
+		{
+			std::list<Layer<update, updateArgs...>> layerList;
+			for(const auto& lis : layer_input_shapes){
+				layerList.push_back(Layer<update, updateArgs...>(lis, lis.first, activation));
+			}
+			layers = layerList;
+			num_outputs = layers.back().getOutputSize();
+
+			input_shape = layer_input_shapes.front();
+		};
+
 
 		auto getLayers() const noexcept
 		{
@@ -137,9 +157,9 @@ namespace NN
 			return target;
 		}
 
-		auto getVectorLoss() const
+		auto getLossDeriv() const
 		{
-			return vector_loss;
+			return loss_deriv;
 		}
 
 		auto getScalarLoss() const
@@ -152,6 +172,17 @@ namespace NN
 			return gradient;
 		}
 
+		auto getLossHistory() const 
+		{
+			return trainingLoss;
+		}
+
+		//gets weights for first layer
+		auto getFirstWeights() const
+		{
+			return layers.front().getWeights();
+		}
+
 		void setInputs(const Mat& _inputs, bool overrideInputShape=false)
 		{
 			if(not overrideInputShape)
@@ -161,12 +192,12 @@ namespace NN
 				} else if(_inputs.cols() != input_shape.second){
 					throw "Error: new input matrix must have number of cols of input_shape.second";
 				}
-				inputs = _inputs
+				inputs = _inputs;
 			} else {
 				inputs = _inputs;
 				input_shape = std::make_pair(inputs.rows(), inputs.cols());
-				layers[0].setInputs(inputs);
-				layer_input_shapes[0] = input_shape;
+				layers.front().setInputs(inputs);
+				layer_input_shapes.front() = input_shape;
 			}
 		}
 
@@ -174,10 +205,10 @@ namespace NN
 		{
 			if(_target.size() != num_outputs){
 				if(overrideTargetSize){
-					num_outputs = target.size();
-					layer_input_shapes.back().second = num_outputs;
+					num_outputs = target.cols();
+					layers.back().setOutputSize(num_outputs);
 					layers.back().setInputShape(layer_input_shapes.back());
-					target = _target
+					target = _target;
 				} else {
 					throw "Error: _target must have length equal to num_outputs";
 				}
@@ -186,17 +217,17 @@ namespace NN
 			}
 		}
 
-		void setLayers(const std::list<Layer<update, updateArgs>>& newLayers)
+		void setLayers(const std::list<Layer<update, updateArgs...>>& newLayers)
 		{
 
 			layers = newLayers;
 
-			std::list<Layer<update, updateArgs>> new_layer_input_shapes;
+			std::list<Layer<update, updateArgs...>> new_layer_input_shapes;
 
 			for(const auto& it : layers){
 				new_layer_input_shapes.push_back(it.getInputShape());
 			}
-			input_shape = new_layer_input_shapes[0];
+			input_shape = new_layer_input_shapes.front();
 
 			num_outputs = new_layer_input_shapes.back().second;
 
@@ -204,7 +235,7 @@ namespace NN
 		}
 
 		//moves layers onto end of list
-		void appendLayers(std::list<Layer<update, updateArgs>>& newLayers)
+		void appendLayers(std::list<Layer<update, updateArgs...>>& newLayers)
 		{
 
 			for(const auto& it : newLayers){
@@ -217,8 +248,8 @@ namespace NN
 
 		}
 
-		void insertLayer(std::list<Layer<update, updateArgs>>::iterator& location,
-						const Layer<update, updateArgs>& newLayer)
+		void insertLayer(typename std::list<Layer<update, updateArgs...>>::iterator& location,
+						const Layer<update, updateArgs...>& newLayer)
 		{
 			if(location == layers.end()){
 				//if location is the end
@@ -226,7 +257,7 @@ namespace NN
 			} else {
 				layers.insert(location, newLayer);
 
-				std::list<Layer<update, updateArgs>> new_layer_input_shapes;
+				std::list<Layer<update, updateArgs...>> new_layer_input_shapes;
 
 				//update shape list
 				for(const auto& it : layers){
@@ -265,8 +296,10 @@ namespace NN
 			if(weights.size() != layers.size()){
 				throw "Error: must provide exactly one weight matrix for each layer.";
 			}
-			for(int_t i=0; i < layers.size(); i++){
-				layers[i].setWeights(weights[i]);
+			auto wit = weights.begin();
+			for(auto& l : layers){
+				l.setWeights(*wit);
+				std::advance(wit,1);
 			}
 		}
 		//gives all layers the same update params
@@ -282,8 +315,10 @@ namespace NN
 			if(argsList.size() != layers.size()){
 				throw "Error: must provide exactly one args tuple for each layer.";
 			}
-			for(int_t i=0; i < argsList.size(); i++){
-				std::apply(layers[i].setUpdateArgs, argsList[i]);
+			auto alit = argsList.begin();
+			for(auto& l : layers){
+				std::apply(l.setUpdateArgs, *alit);
+				std::advance(alit, 1);
 			}
 		}
 
@@ -300,14 +335,16 @@ namespace NN
 			if(activations.size() != layers.size()){
 				throw "Error: must provide exactly one activation for each layer";
 			}
-			for(int_t i=0; i < argsList.size(); i++){
-				layers[i].setActivation(activations[i]);
+			auto ait = activations.begin();
+			for(auto& l : layers){
+				l.setActivation(*ait);
+				std::advance(ait,1);
 			}
 		}
 
 		void setLossFunc(std::string loss)
 		{
-			vector_loss = VECTOR_LOSS[loss];
+			vector_loss_func = VECTOR_LOSS[loss];
 			vector_loss_derivative = VECTOR_LOSS_DERIVATIVE[loss];
 		}
 		
@@ -382,12 +419,19 @@ namespace NN
 		//computes gradient of network
 		void backwardPass()
 		{
-			layers.back().backwardPass(loss_deriv);
 			//from the second-to-last layer, iterate to the beginning
-			for(int_t i = layers.size()-2; i >= 0; i--){
-				layers[i].backwardPass(layers[i+1]);
+			bool isFirst = true;
+			auto prevLayer = layers.back();
+			for(auto l=layers.rbegin(); l != layers.rend(); l++){
+				if(isFirst){
+					(*l).backwardPass(loss_deriv);
+					isFirst = false;
+				} else {
+					(*l).backwardPass(prevLayer);
+				}
+				prevLayer = *l;
 			}
-			gradient = layers[0].getGradient();
+			gradient = layers.front().getGradient();
 		}
 
 		void updateWeights()
@@ -420,17 +464,18 @@ namespace NN
 			backwardPass();
 			trainingLoss.push_back(scalar_loss);
 			size_t num_iter = 1;
+
 			updateWeights();
 			//run until stopping criteria are hit
-			while(num_iter <= maxIter and scalar_loss > stopTol)
+			while(num_iter < maxIter and gradient.norm() > stopTol)
 			{
-				predict()
+				predict();
 				backwardPass();
 				trainingLoss.push_back(scalar_loss);
 				updateWeights();
 				num_iter++;
 			}
-			if(num_iter == maxIter and not noprint){
+			if(num_iter >= maxIter and not noprint){
 				std::cout << "WARNING: NETWORK HIT MAX ITERATIONS IN TRAINING. SCALAR LOSS IS "
 					<< scalar_loss << ". \n";
 			}
@@ -443,9 +488,9 @@ namespace NN
 			std::cout << "      Network Summary:\n\n";
 			std::cout << " (input size) -> (output size)\n\n";
 			size_t count = 1;
-			for(const auto& ls : layer_input_shapes){
+			for(const auto& ls : layers){
 				std::cout << "Layer " << count << ": (" << ls.getInputShape().first
-					<< " x " << ls.getInputShape().second << ") -> (" << ls.getNumOutputs() << ") \n";
+					<< " x " << ls.getInputShape().second << ") -> (" << ls.getOutputSize() << ") \n";
 			}
 			std::cout << "===============================\n";
 		}

@@ -6,14 +6,11 @@
 #include <Eigen/Dense>
 #include <unordered_map>
 #include <functional>
-#include <optional>
 #include <utility>
 #include <string>
 #include <cmath>
 #include <random>
 #include <memory>
-#include <type_traits>
-#include <array>
 #include <omp.h>
 #include <iostream>
 //#include <mkl.h>
@@ -24,9 +21,6 @@ namespace NN
 	using Vec = Eigen::VectorXd;
 	using int_t = int_fast64_t;
 
-	//contains an optional lvalue reference to T
-	template<typename T>
-	using opt_lref = std::optional<std::reference_wrapper<T>>;
 
 	//namespace-level variable for activations
 	std::unordered_map<std::string, std::function<double(double)>> ACTIVATIONS = {
@@ -38,8 +32,8 @@ namespace NN
 	};
 	
 	/*
-	 * takes pairs of (x, z), x a double, Z a Mat
-	 */
+	 * takes pairs of (input, output)
+	 * */
 	std::unordered_map<std::string, std::function<Mat(std::pair<Mat, Mat>)>> ACTIVATION_DERIVATIVES = {
 		{"linear", [](const std::pair<Mat, Mat>& x) -> Mat { 
 									return Mat::Ones(x.second.rows(), x.second.cols());
@@ -160,17 +154,44 @@ namespace NN
 			return outputs;
 		}
 
+		auto getInputShape() const noexcept
+		{
+			return input_shape;
+		}
+
+		auto getOutputSize() const noexcept
+		{
+			return output_size;
+		}
+
 
 		void setWeights(const Mat& _weights) noexcept
 		{
 			weights = _weights;
 		}
 
-		void setInputs(const Mat& _inputs) noexcept
+		void setInputShape(std::pair<int_t, int_t> _input_shape) 
+		{
+			if(_input_shape.first <= 0 or _input_shape.second <= 0){
+				throw  "Error: both elements of input_shape must be positive.";
+			}
+			input_shape = _input_shape;
+			//if input shape is changed, reinitialize the weights as random
+			weights = Mat::Random(input_shape.second +1, output_size);
+		}
+
+		void setOutputSize(int_t _num_outputs) noexcept
+		{
+			output_size = _num_outputs;
+		}
+
+		void setInputs(const Mat& _inputs)
 		{
 			inputs = _inputs;
 			inputMat = makeInputMat(inputs);
+			setInputShape(std::make_pair(inputs.rows(), inputs.cols()));
 		}
+
 
 		Mat getJacobian() const
 		{
@@ -196,12 +217,11 @@ namespace NN
 			return updateParams;
 		}
 
-		Mat calculateOutput(const Mat& input){
-			auto acts = makeInputMat(input) * weights;
-			return acts.unaryExpr(activation);
+		void setActivation(std::string actName)
+		{
+			activation = ACTIVATIONS[actName];
+			activation_grad = ACTIVATION_DERIVATIVES[actName];
 		}
-
-
 
 		void forwardPass(const Mat& inputData)
 		{
@@ -218,18 +238,20 @@ namespace NN
 			//end omp parallel
 		}
 
-		void forwardPass(){
+		void forwardPass()
+		{
 			forwardPass(inputs);
 		}
 
-		Mat makeActDerivs(){
+		Mat makeActDerivs() const noexcept
+		{
 			auto actPair = std::make_pair(inputMat, outputs);
 			return activation_grad(actPair);
-
 		}
 
 
-		Mat computeJacobian(){
+		Mat computeJacobian() noexcept
+		{
 			auto actDerivs = makeActDerivs();
 			
 			Jacobian = actDerivs * weights.transpose();
@@ -239,6 +261,8 @@ namespace NN
 		void backwardPass(const Layer& next) noexcept
 		{
 			Mat loss_g = next.getErr() * next.getWeights().transpose();
+
+			loss_g.conservativeResize(loss_g.rows(), loss_g.cols()-1);
 
 			auto actDerivs = makeActDerivs();
 			err = loss_g.cwiseProduct(actDerivs);
@@ -256,11 +280,8 @@ namespace NN
 			gradient = inputMat.transpose() * err;
 		}
 
-
-
-
-
-		void updateWeights(){
+		void updateWeights()
+		{
 			if constexpr(update == UpdateRule::NesterovAccGrad){
 				//if we're using Nesterov accelerated grad, params are learning rate, momentum
 				double learningRate, momentum;
@@ -270,7 +291,7 @@ namespace NN
 
 				weights += weightUpdate;
 			} else {
-				std::cout << "Error: only NesterovAccGrad is implemented now.";
+				throw "Error: only NesterovAccGrad is implemented now.";
 			}
 		}
 
@@ -278,7 +299,6 @@ namespace NN
 			updateParams = params;
 			updateWeights();
 		}
-
 		
 	};//end class Layer
 
