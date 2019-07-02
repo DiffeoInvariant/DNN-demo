@@ -39,7 +39,7 @@ int main(){
 
 	std::cout << "resid:\n" << resid << '\n';
 
-	testLayer.backwardPass(resid);
+	testLayer.backwardPass(-resid);
 
 	std::cout << "Gradient:\n" << testLayer.getGradient() << '\n';
 
