@@ -241,7 +241,6 @@ namespace NN
 			Mat loss_g = next.getErr() * next.getWeights().transpose();
 
 			auto actDerivs = makeActDerivs();
-			actDerivs.conservativeResize(actDerivs.rows(), actDerivs.cols()-1);
 			err = loss_g.cwiseProduct(actDerivs);
 				
 			gradient = inputMat.transpose() * err;
@@ -252,13 +251,6 @@ namespace NN
 		{
 			//if loss_grad is supplied
 			auto actDerivs = makeActDerivs();
-			//remove column of ones
-			//actDerivs.conservativeResize(actDerivs.rows(), actDerivs.cols()-1);
-
-			std::cout << "ad\n" << actDerivs << '\n';
-
-			std::cout << "ls\n" << loss_grad << '\n';
-
 			err = loss_grad.cwiseProduct(actDerivs);
 			
 			gradient = inputMat.transpose() * err;
