@@ -177,6 +177,11 @@ namespace NN
 			return Jacobian;
 		}
 
+		Mat getGradient() const
+		{
+			return gradient;
+		}
+
 		Mat getErr() const
 		{
 			return err;
@@ -226,30 +231,41 @@ namespace NN
 
 		Mat computeJacobian(){
 			auto actDerivs = makeActDerivs();
-			Jacobian = actDerivs * weights;
+			
+			Jacobian = actDerivs * weights.transpose();
 			return Jacobian;
 		}
 
-		void backwardPass(const std::optional<Layer>& next, const std::optional<Mat>& loss_grad)
+		void backwardPass(const Layer& next) noexcept
 		{
-			if(not loss_grad){
-				if(not next){
-					throw "Error: must supply err_grad or next layer";
-				}
-				Mat loss_g = (*next).getErr() * (*next).getWeights().transpose();
+			Mat loss_g = next.getErr() * next.getWeights().transpose();
 
-				auto actDerivs = makeActDerivs();
-				err = loss_g.cwiseProduct(actDerivs);
+			auto actDerivs = makeActDerivs();
+			actDerivs.conservativeResize(actDerivs.rows(), actDerivs.cols()-1);
+			err = loss_g.cwiseProduct(actDerivs);
 				
-				gradient = inputMat.transpose() * err;
-			} else {
-				//if loss_grad is supplied
-				auto actDerivs = makeActDerivs();
-				err = (*loss_grad).cwiseProduct(actDerivs);
-				
-				gradient = inputMat.transpose() * err;
-			}
+			gradient = inputMat.transpose() * err;
+	
 		}
+
+		void backwardPass(const Mat& loss_grad) noexcept
+		{
+			//if loss_grad is supplied
+			auto actDerivs = makeActDerivs();
+			//remove column of ones
+			//actDerivs.conservativeResize(actDerivs.rows(), actDerivs.cols()-1);
+
+			std::cout << "ad\n" << actDerivs << '\n';
+
+			std::cout << "ls\n" << loss_grad << '\n';
+
+			err = loss_grad.cwiseProduct(actDerivs);
+			
+			gradient = inputMat.transpose() * err;
+		}
+
+
+
 
 
 		void updateWeights(){
