@@ -14,7 +14,7 @@ int main(){
 	// with a hidden layer containing 8 neurons, an output layer with 5,
 	// and sigmoid activation
 	std::cout << "Making layers\n";
-	TestLayer l1(std::make_pair(10, 1), 8, "sigmoid");
+	TestLayer l1(std::make_pair(10, 2), 8, "sigmoid");
 	TestLayer l2(std::make_pair(10,8), 5, "sigmoid");
 	TestLayer l3(std::make_pair(10,5), 1, "sigmoid");
 
@@ -26,7 +26,7 @@ int main(){
 	std::cout << "Making input\n";
 
 	//network input
-	Mat input(10,1);
+	Mat input(10,2);
 	//input << 0.63, 0.12, 1.35, -0.02, 0.18, 0.43, 0.79, 0.36, 0.63, 0.82;
 	input(0,0) = 0.63;
 	input(1,0) = 0.12;
@@ -38,6 +38,17 @@ int main(){
 	input(7,0) = 0.36;
 	input(8,0) = 0.63;
 	input(9,0) = 0.82;
+	input(0,1) = 1.31;
+	input(1,1) = 0.08;
+	input(2,1) = 0.42;
+	input(3,1) = 0.91;
+	input(4,1) = 0.13;
+	input(5,1) = 0.01;
+	input(6,1) = -2.1;
+	input(7,1) = -1.2;
+	input(8,1) = 0.47;
+	input(9,1) = 0.52;
+
 
 
 
@@ -64,8 +75,8 @@ int main(){
 	
 	net.summary();
 
-	std::cout << "Training for up to 10,000 iterations:\n";
-	net.train(1.0e-4, 1.0e4);
+	std::cout << "Training for up to 1,000,000 iterations:\n";
+	net.train(1.0e-4, 1.0e6);
 
 	std::cout << "Target :\n" << targ << "\n Trained Prediction: \n" << net.getOutputs() << '\n';
 	auto trainLoss = net.getLossHistory();
@@ -73,6 +84,9 @@ int main(){
 	std::cout << "Final loss: \n" << trainLoss.back();
 
 	std::cout << "\nTrained in " << trainLoss.size() << " iterations.\n";
+
+	net.visualizeNetwork();
+	
 	return 0;
 }
 

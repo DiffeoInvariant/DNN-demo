@@ -93,6 +93,8 @@ namespace NN
 
 		std::tuple<updateArgs...> updateParams;
 
+		std::string name="Layer";
+
 
 	public:
 
@@ -118,13 +120,15 @@ namespace NN
 
 		Layer(std::pair<int_t, int_t> _input_shape,
 					 int_t _output_size,
-					 std::string _activation) : 
+					 std::string _activation, bool initWeights=true) : 
 							input_shape(_input_shape),
 							output_size(_output_size)
 		{
 			activation = NN::ACTIVATIONS[_activation];
 			activation_grad = NN::ACTIVATION_DERIVATIVES[_activation];
-			weights = Mat::Random(input_shape.second +1, output_size);
+			if(initWeights){
+				weights = Mat::Random(input_shape.second +1, output_size);
+			}
 		};
 
 		Layer(const Mat& _inputs,
@@ -164,20 +168,37 @@ namespace NN
 			return output_size;
 		}
 
+		auto getName()
+		{
+			return name;
+		}
+
+		void setName(std::string newName)
+		{
+			name = newName;
+		}
+
+		void setName(int newName)
+		{
+			name = "Layer " + std::to_string(newName);
+		}
+
 
 		void setWeights(const Mat& _weights) noexcept
 		{
 			weights = _weights;
 		}
 
-		void setInputShape(std::pair<int_t, int_t> _input_shape) 
+		void setInputShape(std::pair<int_t, int_t> _input_shape, bool reinitWeights=true) 
 		{
 			if(_input_shape.first <= 0 or _input_shape.second <= 0){
 				throw  "Error: both elements of input_shape must be positive.";
 			}
 			input_shape = _input_shape;
 			//if input shape is changed, reinitialize the weights as random
-			weights = Mat::Random(input_shape.second +1, output_size);
+			if(reinitWeights){
+				weights = Mat::Random(input_shape.second +1, output_size);
+			}
 		}
 
 		void setOutputSize(int_t _num_outputs) noexcept
@@ -185,10 +206,12 @@ namespace NN
 			output_size = _num_outputs;
 		}
 
-		void setInputs(const Mat& _inputs)
+		void setInputs(const Mat& _inputs, bool usemakeInputMat=true)
 		{
 			inputs = _inputs;
-			inputMat = makeInputMat(inputs);
+			if(usemakeInputMat){
+				inputMat = makeInputMat(inputs);
+			}
 			setInputShape(std::make_pair(inputs.rows(), inputs.cols()));
 		}
 
@@ -225,6 +248,7 @@ namespace NN
 
 		void forwardPass(const Mat& inputData)
 		{
+			setInputs(inputData);
 			if(weights.rows() != input_shape.second + 1){
 				throw "Input size error";
 			} else if(weights.cols() != output_size){
@@ -295,9 +319,22 @@ namespace NN
 			}
 		}
 
-		void updateWeights(const std::tuple<updateArgs...>& params){
+		void updateWeights(const std::tuple<updateArgs...>& params)
+		{
 			updateParams = params;
 			updateWeights();
+		}
+
+		void visualizeLayer() 
+		{
+			std::cout << "\n================  " << name << "  ================\n\n";
+			std::cout << " ([inputs,1] * [weights]) -> activation -> outputs   \n";
+			std::cout << " (             [  bias ])                          \n\n";
+			std::cout << " \nInputs:\n" << inputs << '\n';
+			std::cout << " \nWeights (last row is bias):\n" << weights << '\n';
+			std::cout << " \n[inputs,1] * [weights, bias]^T:\n" << actVals << '\n';
+			std::cout << " \nOutputs:\n" << outputs << '\n';
+			std::cout << " ===================================================\n";
 		}
 		
 	};//end class Layer

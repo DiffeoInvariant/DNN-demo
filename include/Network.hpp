@@ -495,6 +495,24 @@ namespace NN
 			std::cout << "===============================\n";
 		}
 
+		void visualizeNetwork()
+		{
+			int_t count = 1;
+			std::cout << "===============================\n";
+			std::cout << "Network Layers: \n\n";
+			for(auto& l : layers){
+				if(l.getName() == "Layer"){
+					l.setName(count);
+				}
+				count++;
+				l.visualizeLayer();
+			}
+			std::cout << "========  End Network  ========\n";
+		}
+
+
+
+
 	};
 
 
