@@ -81,6 +81,8 @@ namespace NN
 			layers({finalLayer});
 
 			layer_input_shapes({input_shape});
+
+			Eigen::setNbThreads(0);
 		};
 
 		Network(std::initializer_list<Layer<update, updateArgs...>> _layers) : layers(_layers) 
@@ -91,6 +93,9 @@ namespace NN
 			input_shape = layer_input_shapes.front();
 
 			num_outputs = layers.back().getOutputSize();
+
+			Eigen::setNbThreads(0);
+
 		};
 
 		Network(std::string activation,
@@ -107,6 +112,9 @@ namespace NN
 			input_shape = layer_input_shapes.front();
 
 			num_outputs = layers.back().getOutputSize();
+
+			Eigen::setNbThreads(0);
+
 		};
 
 		Network(std::string activation,
@@ -124,6 +132,9 @@ namespace NN
 			num_outputs = layers.back().getOutputSize();
 
 			input_shape = layer_input_shapes.front();
+
+			Eigen::setNbThreads(0);
+
 		};
 
 
@@ -181,6 +192,10 @@ namespace NN
 		auto getFirstWeights() const
 		{
 			return layers.front().getWeights();
+		}
+
+		void setNumThreads(int n){
+			Eigen::setNbThreads(n);
 		}
 
 		void setInputs(const Mat& _inputs, bool overrideInputShape=false)
@@ -432,6 +447,7 @@ namespace NN
 				prevLayer = *l;
 			}
 			gradient = layers.front().getGradient();
+
 		}
 
 		void updateWeights()
@@ -456,11 +472,12 @@ namespace NN
 		void train(double stopTol=1.0e-5, 
 				   size_t maxIter=1.0e3,
 				   std::optional<Mat> inputData=std::nullopt,
-				   std::optional<Vec> _target=std::nullopt,
+				   std::optional<Vec> _newtarget=std::nullopt,
 				   bool noprint=false)
 		{
 			//run first training round
-			predict(inputData=inputData, _target=_target);
+
+			predict(inputData, _newtarget);
 			backwardPass();
 			trainingLoss.push_back(scalar_loss);
 			size_t num_iter = 1;
