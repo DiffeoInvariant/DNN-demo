@@ -4,13 +4,13 @@ CXX=clang++
 
 CXXFLAGS = -std=c++17
 CXXFLAGS += -O3
-CXXFLAGS += -I /usr/local/Cellar/eigen/3.3.7/include/eigen3
+CXXFLAGS += `pkg-config --cflags --libs eigen3` -lomp
 
-ltest: layertest.cpp
+ltest: tests/layertest.cpp
 	$(CXX) layertest.cpp $(CXXFLAGS) -o ltest
 
-ntest: networktest.cpp
-	$(CXX) networktest.cpp $(CXXFLAGS) -o ntest
+ntest: tests/networktest.cpp
+	$(CXX) tests/networktest.cpp $(CXXFLAGS) -o ntest
 
 
 
