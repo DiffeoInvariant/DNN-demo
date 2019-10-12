@@ -255,9 +255,10 @@ namespace NN
 				throw "Output size error";
 			}
 			//make activation values for each neuron
-			//#pragma omp parallel
-			
+			#pragma omp parallel
 			actVals = inputMat * weights;
+
+			#pragma omp parallel
 			outputs = actVals.unaryExpr(activation);
 			//end omp parallel
 		}
@@ -284,6 +285,7 @@ namespace NN
 
 		void backwardPass(const Layer& next) noexcept
 		{
+#pragma omp parallel
 			Mat loss_g = next.getErr() * next.getWeights().transpose();
 
 			loss_g.conservativeResize(loss_g.rows(), loss_g.cols()-1);
@@ -311,13 +313,24 @@ namespace NN
 				double learningRate, momentum;
 				std::tie(learningRate, momentum) = updateParams;
 	
+				#pragma omp parallel
+				{
 				weightUpdate = momentum * weightUpdate - learningRate * gradient;
 
 				weights += weightUpdate;
+				}
 			} else {
 				throw "Error: only NesterovAccGrad is implemented now.";
 			}
 		}
+
+		void updateWeights(double mult)
+		{
+			updateWeights();
+			#pragma omp parallel
+			weights *= mult;
+		}
+
 
 		void updateWeights(const std::tuple<updateArgs...>& params)
 		{

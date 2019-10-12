@@ -1,4 +1,4 @@
-#include "include/Layer.hpp"
+#include "../include/Layer.hpp"
 #include <Eigen/Core>
 #include <utility>
 #include <iostream>
@@ -15,7 +15,7 @@ int main(){
 
 
 	//layer taking 4 inputs, giving 4 outputs
-	NN::Layer<NN::UpdateRule::NesterovAccGrad, double, double> testLayer(std::make_pair(4, 1), 1, "sigmoid");
+	NN::Layer<NN::UpdateRule::NesterovAccGrad, double, double> testLayer(std::make_pair(4, 1), 3, "tanh");
 
 	testLayer.setInputs(input);
 	//set learning rate, momentum
@@ -31,14 +31,14 @@ int main(){
 
 	std::cout << "Jacobian: \n" << grad << '\n';
 
-	auto target = 2*Vec::Ones(4);
+	auto target = 2*Mat::Ones(4,3);
 
 	std::cout << "Target:\n" << target << '\n';
 
 	auto resid = target - outputs;
 
 	std::cout << "resid:\n" << resid << '\n';
-
+	//resid is also the negative of the derivative of the L2 loss function w.r.t. the output
 	testLayer.backwardPass(-resid);
 
 	std::cout << "Gradient:\n" << testLayer.getGradient() << '\n';
