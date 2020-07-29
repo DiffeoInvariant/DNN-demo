@@ -15,7 +15,7 @@ int main(){
 
 
 	//layer taking 4 inputs, giving 4 outputs
-	NN::Layer<NN::UpdateRule::NesterovAccGrad, double, double> testLayer(std::make_pair(4, 1), 3, "tanh");
+	NN::Layer testLayer(std::make_pair(4, 1), 3, "tanh");
 
 	testLayer.setInputs(input);
 	//set learning rate, momentum

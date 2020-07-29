@@ -61,7 +61,6 @@ namespace NN
     };
 
 
-  template<UpdateRule update, typename... updateArgs>
   class Layer
   {
     
@@ -93,9 +92,11 @@ namespace NN
 
     Mat Jacobian;
 
-    std::tuple<updateArgs...> updateParams;
+    std::tuple<double,double> updateParams;
 
     std::string name="Layer";
+
+    UpdateRule update=UpdateRule::NesterovAccGrad;
 
 
   public:
@@ -212,11 +213,11 @@ namespace NN
       return err;
     }
 
-    void setUpdateParams(updateArgs... args) noexcept {
-      updateParams = std::tuple<updateArgs...>(args...);
+    void setUpdateParams(double learningrate, double momentum) noexcept {
+      updateParams = std::tuple<double,double>(learningrate,momentum);
     }
 
-    std::tuple<updateArgs...> getUpdateParams() const noexcept
+    std::tuple<double,double> getUpdateParams() const noexcept
     {
       return updateParams;
     }
@@ -225,10 +226,7 @@ namespace NN
 
     void forwardPass(const Mat& inputData);
 
-    void forwardPass()
-    {
-      forwardPass(inputs);
-    }
+    void forwardPass();
 
     Mat makeActDerivs() const noexcept
     {
@@ -249,7 +247,7 @@ namespace NN
     void updateWeights(double mult);
 
 
-    void updateWeights(const std::tuple<updateArgs...>& params)
+    void updateWeights(const std::tuple<double,double>& params)
     {
       updateParams = params;
       updateWeights();
@@ -258,7 +256,6 @@ namespace NN
     void visualizeLayer(std::ostream& ostr = std::cout);
 		
   };//end class Layer
-
 
 
 }//end namespace NN

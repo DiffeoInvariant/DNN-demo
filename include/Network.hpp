@@ -36,7 +36,6 @@ namespace NN
 											  {"L2", [](Vec pred, Vec obs) -> Vec { return pred - obs; } }
   };
 
-  template<UpdateRule update, typename... updateArgs>
   class Network
   {
   protected:
@@ -51,7 +50,7 @@ namespace NN
 
     Vec target;
 
-    std::list<Layer<update, updateArgs...>> layers;
+    std::list<Layer> layers;
 
     std::list<std::pair<int_t, int_t>> layer_input_shapes;
 
@@ -69,6 +68,8 @@ namespace NN
 
     Mat gradient;
 
+    UpdateRule update = UpdateRule::NesterovAccGrad;
+
   public:
 
     Network(std::pair<int_t, int_t> _input_shape,
@@ -81,7 +82,7 @@ namespace NN
 	vector_loss_derivative(VECTOR_LOSS_DERIVATIVE[loss])
 
     {
-      Layer<update, updateArgs...> finalLayer(input_shape, num_outputs, activation);
+      Layer finalLayer(input_shape, num_outputs, activation);
       layers.push_back({finalLayer});
 
       layer_input_shapes.push_back({input_shape});
@@ -89,7 +90,7 @@ namespace NN
       Eigen::setNbThreads(0);
     };
 
-    Network(std::initializer_list<Layer<update, updateArgs...>> _layers)
+    Network(std::initializer_list<Layer> _layers)
       : layers(_layers) 
     {
       for(const auto& it : layers){
@@ -105,7 +106,7 @@ namespace NN
 
     Network(std::string activation,
 	    std::string loss,
-	    std::initializer_list<Layer<update, updateArgs...>> _layers)
+	    std::initializer_list<Layer> _layers)
       : layers(_layers),
 	vector_loss_func(VECTOR_LOSS[loss]),
 	vector_loss_derivative(VECTOR_LOSS_DERIVATIVE[loss])
@@ -130,9 +131,9 @@ namespace NN
       vector_loss_func(VECTOR_LOSS[loss]),
       vector_loss_derivative(VECTOR_LOSS_DERIVATIVE[loss])
     {
-      std::list<Layer<update, updateArgs...>> layerList;
+      std::list<Layer> layerList;
       for(const auto& lis : layer_input_shapes){
-	layerList.push_back(Layer<update, updateArgs...>(lis, lis.first, activation));
+	layerList.push_back(Layer(lis, lis.first, activation));
       }
       layers = layerList;
       num_outputs = layers.back().getOutputSize();
@@ -208,14 +209,14 @@ namespace NN
 
     void setTarget(const Vec& _target, bool overrideTargetSize=false);
 
-    void setLayers(const std::list<Layer<update, updateArgs...>>& newLayers);
+    void setLayers(const std::list<Layer>& newLayers);
 
     //moves layers onto end of list
-    void appendLayers(std::list<Layer<update, updateArgs...>>& newLayers);
+    void appendLayers(std::list<Layer>& newLayers);
     
 
-    void insertLayer(typename std::list<Layer<update, updateArgs...>>::iterator& location,
-		     const Layer<update, updateArgs...>& newLayer);
+    void insertLayer(typename std::list<Layer>::iterator& location,
+		     const Layer& newLayer);
     
 
     std::list<Mat> getWeights() const noexcept
@@ -241,14 +242,14 @@ namespace NN
     void setWeights(const std::list<Mat>& weights);
     
     //gives all layers the same update params
-    void setUpdateParams(updateArgs... args) noexcept
+    void setUpdateParams(double lr, double p) noexcept
     {
       for(auto& l : layers){
-	l.setUpdateParams(args...);
+	l.setUpdateParams(lr,p);
       }
     }
     //different args for each layer
-    void setUpdateParams(const std::list<std::tuple<updateArgs...>>& argsList);
+    void setUpdateParams(const std::list<std::tuple<double,double>>& argsList);
 
     //same activation for each layer
     void setActivations(std::string activations) noexcept
@@ -291,15 +292,15 @@ namespace NN
       }
     }
 
-    void updateWeights(const std::list<std::tuple<updateArgs...>>& argsList)
+    void updateWeights(const std::list<std::tuple<double,double>>& argsList)
     {
       setUpdateParams(argsList);
       updateWeights();
     }
 
-    void updateWeights(updateArgs... args)
+    void updateWeights(double lr, double p)
     {
-      setUpdateParams(args...);
+      setUpdateParams(lr,p);
       updateWeights();
     }
 

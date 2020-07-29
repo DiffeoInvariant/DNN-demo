@@ -10,9 +10,14 @@ CXXSHARED = $(CXXFLAGS) -shared -fPIC
 INSTALLDIR = $(DNN_DIR)
 LIBTARGET = $(INSTALLDIR)/lib/libdnn.so
 DNN_SRCS = src/Layer.cc src/Network.cc
+
+DNN_LDFLAGS = -L$(INSTALLDIR)/lib -Wl,-rpath,$(INSTALLDIR)/lib -ldnn
+
+.PHONY: all $(LIBTARGET) ltest ntest
+
 default: all
 
-all: $(LIBTARGET)
+all: $(LIBTARGET) ltest ntest
 
 $(LIBTARGET): $(DNN_SRCS)
 	$(CXX) $(CXXSHARED) $^ -o $@
@@ -20,10 +25,10 @@ $(LIBTARGET): $(DNN_SRCS)
 
 
 ltest: tests/layertest.cpp
-	$(CXX) $< $(CXXFLAGS) -o $@
+	$(CXX) $< $(CXXFLAGS) -o $@ $(DNN_LDFLAGS)
 
 ntest: tests/networktest.cpp
-	$(CXX) $< $(CXXFLAGS) -o $@
+	$(CXX) $< $(CXXFLAGS) -o $@ $(DNN_LDFLAGS)
 
 
 

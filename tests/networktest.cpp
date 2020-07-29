@@ -6,8 +6,8 @@
 using Mat = Eigen::MatrixXd;
 using Vec = Eigen::VectorXd;
 
-using TestLayer = NN::Layer<NN::UpdateRule::NesterovAccGrad, double, double>;
-using TestNetwork = NN::Network<NN::UpdateRule::NesterovAccGrad, double, double>;
+using TestLayer = NN::Layer;
+using TestNetwork = NN::Network;
 
 int main(){
 	// 3-layer network, taking a 10 x 1 input and producing one output, 

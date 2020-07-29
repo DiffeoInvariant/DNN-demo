@@ -4,8 +4,7 @@ namespace NN
 {
 
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::setInputs(const Mat& _inputs, bool overrideInputShape)
+  void Network::setInputs(const Mat& _inputs, bool overrideInputShape)
   {
     if(not overrideInputShape) {
       if(_inputs.rows() != input_shape.first){
@@ -23,8 +22,7 @@ namespace NN
   }
 
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::setTarget(const Vec& _target, bool overrideTargetSize)
+  void Network::setTarget(const Vec& _target, bool overrideTargetSize)
   {
     if(_target.size() != num_outputs){
       if(overrideTargetSize){
@@ -40,12 +38,11 @@ namespace NN
     }
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::setLayers(const std::list<Layer<update, updateArgs...>>& newLayers)
+  void Network::setLayers(const std::list<Layer>& newLayers)
   {
     layers = newLayers;
     
-    std::list<Layer<update, updateArgs...>> new_layer_input_shapes;
+    std::list<std::pair<int_t,int_t>> new_layer_input_shapes;
 
     for(const auto& it : layers){
       new_layer_input_shapes.push_back(it.getInputShape());
@@ -57,8 +54,7 @@ namespace NN
     layer_input_shapes = new_layer_input_shapes;
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::appendLayers(std::list<Layer<update, updateArgs...>>& newLayers)
+  void Network::appendLayers(std::list<Layer>& newLayers)
   {
     for(const auto& it : newLayers){
       layer_input_shapes.push_back(it.getInputShape());
@@ -70,23 +66,23 @@ namespace NN
   }
 
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::insertLayer(typename std::list<Layer<update, updateArgs...>>::iterator& location,
-		     const Layer<update, updateArgs...>& newLayer)
+  void Network::insertLayer(typename std::list<Layer>::iterator& location,
+			    const Layer& newLayer)
   {
     if(location == layers.end()){
       //if location is the end
-      appendLayers({newLayer});
+      layer_input_shapes.push_back(newLayer.getInputShape());
+      layers.push_back(newLayer);
     } else {
       layers.insert(location, newLayer);
 
-      std::list<Layer<update, updateArgs...>> new_layer_input_shapes;
+      std::list<std::pair<int_t,int_t>> new_layer_input_shapes;
 
       //update shape list
       for(const auto& it : layers){
 	new_layer_input_shapes.push_back(it.getInputShape());
       }
-      input_shape = new_layer_input_shapes[0];
+      input_shape = new_layer_input_shapes.front();
 
       num_outputs = new_layer_input_shapes.back().second;
 
@@ -95,8 +91,7 @@ namespace NN
   }
 
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::setWeights(const std::list<Mat>& weights)
+  void Network::setWeights(const std::list<Mat>& weights)
   {
     if(weights.size() != layers.size()){
       throw "Error: must provide exactly one weight matrix for each layer.";
@@ -108,21 +103,19 @@ namespace NN
     }
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::setUpdateParams(const std::list<std::tuple<updateArgs...>>& argsList)
+  void Network::setUpdateParams(const std::list<std::tuple<double,double>>& argsList)
   {
     if(argsList.size() != layers.size()){
       throw "Error: must provide exactly one args tuple for each layer.";
     }
     auto alit = argsList.begin();
     for(auto& l : layers){
-      std::apply(l.setUpdateArgs, *alit);
+      l.setUpdateParams(std::get<0>(*alit),std::get<1>(*alit));
       std::advance(alit, 1);
     }
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::setActivations(const std::list<std::string>& activations)
+  void Network::setActivations(const std::list<std::string>& activations)
   {
     if(activations.size() != layers.size()){
       throw "Error: must provide exactly one activation for each layer";
@@ -134,9 +127,9 @@ namespace NN
     }
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::predict(std::optional<Mat> inputData,
-					      std::optional<Vec> _target) 
+
+  void Network::predict(std::optional<Mat> inputData,
+			std::optional<Vec> _target) 
   {
     if(inputData){
       setInputs(*inputData);
@@ -162,9 +155,9 @@ namespace NN
     loss_deriv = vector_loss_derivative(outputs, target);
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  Vec Network<update,updateArgs...>::predictVal(std::optional<Mat> inputData,
-						std::optional<Vec> _target) 
+
+  Vec Network::predictVal(std::optional<Mat> inputData,
+			  std::optional<Vec> _target) 
   {
     if(inputData){
       setInputs(*inputData);
@@ -193,8 +186,8 @@ namespace NN
     return outputs;
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::backwardPass()
+
+  void Network::backwardPass()
   {
     //from the second-to-last layer, iterate to the beginning
     bool isFirst = true;
@@ -212,12 +205,12 @@ namespace NN
   }
 
 
-  template<UpdateRule update, typename... updateArgs>
-  void Network<update,updateArgs...>::train(double stopTol, 
-					    size_t maxIter,
-					    std::optional<Mat> inputData,
-					    std::optional<Vec> _newtarget,
-					    bool noprint)
+ 
+  void Network::train(double stopTol, 
+		      size_t maxIter,
+		      std::optional<Mat> inputData,
+		      std::optional<Vec> _newtarget,
+		      bool noprint)
   {
     //run first training round
     predict(inputData, _newtarget);
@@ -238,7 +231,34 @@ namespace NN
 		<< scalar_loss << ". \n";
     }
   }
-  
+
+  void Network::summary()
+  {
+    std::cout << "===============================\n";
+    std::cout << "      Network Summary:\n\n";
+    std::cout << " (input size) -> (output size)\n\n";
+    size_t count = 1;
+    for(const auto& ls : layers){
+      std::cout << "Layer " << count << ": (" << ls.getInputShape().first
+		<< " x " << ls.getInputShape().second << ") -> (" << ls.getOutputSize() << ") \n";
+    }
+    std::cout << "===============================\n";
+  }
+
+  void Network::visualizeNetwork()
+  {
+    int_t count = 1;
+    std::cout << "===============================\n";
+    std::cout << "Network Layers: \n\n";
+    for(auto& l : layers){
+      if(l.getName() == "Layer"){
+	l.setName(count);
+      }
+      count++;
+      l.visualizeLayer();
+    }
+    std::cout << "========  End Network  ========\n";
+  }
 
 
 

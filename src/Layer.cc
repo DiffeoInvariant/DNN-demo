@@ -3,17 +3,15 @@
 
 namespace NN
 { 
-  template<UpdateRule update, typename... updateArgs>
-  Mat Layer<update,updateArgs...>::makeInputMat(const Mat& input)
+  Mat Layer::makeInputMat(const Mat& input)
   {
     Mat ipm(input.rows(), input.cols() + 1);
     ipm << input, Mat::Ones(input.rows(),1);
     return ipm;
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::setInputShape(std::pair<int_t, int_t> _input_shape,
-						  bool reinitWeights)
+  void Layer::setInputShape(std::pair<int_t, int_t> _input_shape,
+			    bool reinitWeights)
   {
     if(_input_shape.first <= 0 or _input_shape.second <= 0){
       throw  "Error: both elements of input_shape must be positive.";
@@ -25,8 +23,7 @@ namespace NN
     }
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::setInputs(const Mat& _inputs, bool usemakeInputMat)
+  void Layer::setInputs(const Mat& _inputs, bool usemakeInputMat)
   {
     inputs = _inputs;
     if(usemakeInputMat){
@@ -35,15 +32,13 @@ namespace NN
     setInputShape(std::make_pair(inputs.rows(), inputs.cols()));
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::setActivation(std::string actName)
+  void Layer::setActivation(std::string actName)
   {
     activation = ACTIVATIONS[actName];
     activation_grad = ACTIVATION_DERIVATIVES[actName];
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::forwardPass(const Mat& inputData)
+  void Layer::forwardPass(const Mat& inputData)
   {
     setInputs(inputData);
     if(weights.rows() != input_shape.second + 1){
@@ -64,10 +59,13 @@ namespace NN
     //end omp parallel
   }
 
+  void Layer::forwardPass()
+  {
+    forwardPass(inputs);
+  }
 
 
-  template<UpdateRule update, typename... updateArgs>
-  Mat Layer<update,updateArgs...>::computeJacobian() noexcept
+  Mat Layer::computeJacobian() noexcept
   {
     auto actDerivs = makeActDerivs();
     
@@ -75,8 +73,7 @@ namespace NN
     return Jacobian;
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::backwardPass(const Layer& next) noexcept
+  void Layer::backwardPass(const Layer& next) noexcept
   {
     Mat loss_g;
     #pragma omp parallel
@@ -93,8 +90,7 @@ namespace NN
 	
     }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::backwardPass(const Mat& loss_grad) noexcept
+  void Layer::backwardPass(const Mat& loss_grad) noexcept
   {
     //if loss_grad is supplied
     auto actDerivs = makeActDerivs();
@@ -104,35 +100,32 @@ namespace NN
   }
 
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::updateWeights()
+  void Layer::updateWeights()
   {
-    if constexpr(update == UpdateRule::NesterovAccGrad){
+    //if constexpr(update == UpdateRule::NesterovAccGrad){
 	//if we're using Nesterov accelerated grad, params are learning rate, momentum
-	auto [learningRate, momentum] = updateParams;
+    auto [learningRate, momentum] = updateParams;
 	
-        #pragma omp parallel
-	{
-	  weightUpdate = momentum * weightUpdate - learningRate * gradient;
+    #pragma omp parallel
+    {
+      weightUpdate = momentum * weightUpdate - learningRate * gradient;
 
-	  weights += weightUpdate;
-	}
-      } else {
-      throw "Error: only NesterovAccGrad is implemented now.";
+      weights += weightUpdate;
     }
+	//} else {
+	//throw "Error: only NesterovAccGrad is implemented now.";
+	//}
   }
 
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::updateWeights(double mult)
+  void Layer::updateWeights(double mult)
   {
     updateWeights();
     #pragma omp parallel
     weights *= mult;
   }
 
-  template<UpdateRule update, typename... updateArgs>
-  void Layer<update,updateArgs...>::visualizeLayer(std::ostream& ostr) 
+  void Layer::visualizeLayer(std::ostream& ostr) 
   {
     ostr << "\n================  " << name << "  ================\n\n";
     ostr << " ([inputs,1] * [weights]) -> activation -> outputs   \n";
