@@ -3,7 +3,7 @@ CXX=clang++
 DNN_DIR = $(PWD)
 DNN_INCL = -I$(DNN_DIR)/include
 CXXFLAGS = -std=c++17
-CXXFLAGS += -O3 -g 
+CXXFLAGS += -O3 -g -march=native -mtune=native -mavx2
 CXXFLAGS += `pkg-config --cflags --libs eigen3` $(DNN_INCL)
 
 CXXSHARED = $(CXXFLAGS) -shared -fPIC

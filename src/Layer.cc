@@ -3,7 +3,7 @@
 
 namespace NN
 { 
-  Mat Layer::makeInputMat(const Mat& input)
+  Mat Layer::makeInputMat(ConstMatRef input)
   {
     Mat ipm(input.rows(), input.cols() + 1);
     ipm << input, Mat::Ones(input.rows(),1);
@@ -23,7 +23,7 @@ namespace NN
     }
   }
 
-  void Layer::setInputs(const Mat& _inputs, bool usemakeInputMat)
+  void Layer::setInputs(ConstMatRef _inputs, bool usemakeInputMat)
   {
     inputs = _inputs;
     if(usemakeInputMat){
@@ -38,7 +38,7 @@ namespace NN
     activation_grad = ACTIVATION_DERIVATIVES[actName];
   }
 
-  void Layer::forwardPass(const Mat& inputData)
+  void Layer::forwardPass(ConstMatRef inputData)
   {
     setInputs(inputData);
     if(weights.rows() != input_shape.second + 1){
@@ -90,7 +90,7 @@ namespace NN
 	
     }
 
-  void Layer::backwardPass(const Mat& loss_grad) noexcept
+  void Layer::backwardPass(ConstMatRef loss_grad) noexcept
   {
     //if loss_grad is supplied
     auto actDerivs = makeActDerivs();

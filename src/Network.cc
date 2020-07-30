@@ -4,7 +4,7 @@ namespace NN
 {
 
 
-  void Network::setInputs(const Mat& _inputs, bool overrideInputShape)
+  void Network::setInputs(ConstMatRef _inputs, bool overrideInputShape)
   {
     if(not overrideInputShape) {
       if(_inputs.rows() != input_shape.first){
@@ -22,7 +22,7 @@ namespace NN
   }
 
 
-  void Network::setTarget(const Vec& _target, bool overrideTargetSize)
+  void Network::setTarget(Eigen::Ref<const Vec> _target, bool overrideTargetSize)
   {
     if(_target.size() != num_outputs){
       if(overrideTargetSize){
@@ -241,6 +241,7 @@ namespace NN
     for(const auto& ls : layers){
       std::cout << "Layer " << count << ": (" << ls.getInputShape().first
 		<< " x " << ls.getInputShape().second << ") -> (" << ls.getOutputSize() << ") \n";
+      count++;
     }
     std::cout << "===============================\n";
   }

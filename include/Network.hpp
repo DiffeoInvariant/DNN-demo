@@ -22,18 +22,18 @@
 
 namespace NN
 {
-  std::unordered_map<std::string, std::function<double(Vec, Vec)>>
+  std::unordered_map<std::string, std::function<double(Eigen::Ref<const Vec>, Eigen::Ref<const Vec>)>>
   VECTOR_LOSS = {
-		 {"L2", [](Vec pred, Vec obs) -> double {
+		 {"L2", [](Eigen::Ref<const Vec> pred, Eigen::Ref<const Vec> obs) -> double {
 			  Vec resid = pred - obs;
 			  return 0.5 * resid.dot(resid);
 			}
 		 }
   };
 
-  std::unordered_map<std::string, std::function<Vec(Vec, Vec)>>
+  std::unordered_map<std::string, std::function<Vec(Eigen::Ref<const Vec>, Eigen::Ref<const Vec>)>>
   VECTOR_LOSS_DERIVATIVE = {
-											  {"L2", [](Vec pred, Vec obs) -> Vec { return pred - obs; } }
+											  {"L2", [](Eigen::Ref<const Vec> pred, Eigen::Ref<const Vec> obs) -> Vec { return pred - obs; } }
   };
 
   class Network
@@ -54,9 +54,9 @@ namespace NN
 
     std::list<std::pair<int_t, int_t>> layer_input_shapes;
 
-    std::function<double(Vec,Vec)> vector_loss_func;
+    std::function<double(Eigen::Ref<const Vec>,Eigen::Ref<const Vec>)> vector_loss_func;
 
-    std::function<Vec(Vec,Vec)> vector_loss_derivative;
+    std::function<Vec(Eigen::Ref<const Vec>,Eigen::Ref<const Vec>)> vector_loss_derivative;
 
     Vec loss_deriv;
 
@@ -201,13 +201,13 @@ namespace NN
       return layers.front().getWeights();
     }
 
-    void setNumThreads(int n){
+    void setNumThreads(int n) {
       Eigen::setNbThreads(n);
     }
 
-    void setInputs(const Mat& _inputs, bool overrideInputShape=false);
+    void setInputs(ConstMatRef _inputs, bool overrideInputShape=false);
 
-    void setTarget(const Vec& _target, bool overrideTargetSize=false);
+    void setTarget(Eigen::Ref<const Vec> _target, bool overrideTargetSize=false);
 
     void setLayers(const std::list<Layer>& newLayers);
 

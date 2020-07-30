@@ -1,7 +1,7 @@
 #ifndef LAYER_HPP
 #define LAYER_HPP
 //#define EIGEN_USE_MKL_ALL
-
+#define EIGEN_VECTORIZE
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <unordered_map>
@@ -17,8 +17,10 @@
 
 namespace NN
 {
-  using Mat = Eigen::MatrixXd;
+  using Mat = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
   using Vec = Eigen::VectorXd;
+  using MatRef = Eigen::Ref<Mat>;
+  using ConstMatRef = Eigen::Ref<const Mat>;
   using int_t = int_fast64_t;
 
   
@@ -35,21 +37,21 @@ namespace NN
   /*
    * takes pairs of (input, output)
    * */
-  static std::unordered_map<std::string, std::function<Mat(std::pair<Mat, Mat>)>>
+  static std::unordered_map<std::string, std::function<Mat(std::pair<ConstMatRef,ConstMatRef>)>>
   ACTIVATION_DERIVATIVES = {
-			    {"linear", [](const std::pair<Mat, Mat>& x) -> Mat { 
+			    {"linear", [](std::pair<ConstMatRef,ConstMatRef> x) -> Mat { 
 					 return Mat::Ones(x.second.rows(), x.second.cols());
 				       } },
-			    {"sigmoid", [](const std::pair<Mat, Mat>& x) -> Mat {
+			    {"sigmoid", [](std::pair<ConstMatRef,ConstMatRef> x) -> Mat {
 					  return x.second.cwiseProduct((Mat::Ones(x.second.rows(), x.second.cols())- x.second));
 					} },
-			    {"tanh",   [](const std::pair<Mat, Mat>& x) -> Mat {
+			    {"tanh",   [](std::pair<ConstMatRef,ConstMatRef> x) -> Mat {
 					 return Mat::Ones(x.second.rows(), x.second.cols()) - x.second.cwiseProduct(x.second);
 				       } },
-			    {"relu", [](const std::pair<Mat, Mat>& x) -> Mat { 
+			    {"relu", [](std::pair<ConstMatRef,ConstMatRef> x) -> Mat { 
 				       return x.first.unaryExpr([](double y){
 								  return y > 0.0 ? 1.0 : 0.0; }); } },
-			    {"softplus", [](const std::pair<Mat, Mat>& x) -> Mat { 
+			    {"softplus", [](std::pair<ConstMatRef,ConstMatRef> x) -> Mat { 
 					   return x.first.unaryExpr([](double y){return 1/(exp(-y)+1);});
 					 } }
 			    
@@ -72,7 +74,7 @@ namespace NN
 
     std::function<double(double)> activation;
 
-    std::function<Mat(std::pair<Mat, Mat>)> activation_grad;
+    std::function<Mat(std::pair<ConstMatRef,ConstMatRef>)> activation_grad;
 
     Mat actVals;
 
@@ -101,13 +103,13 @@ namespace NN
 
   public:
 
-    static Mat makeInputMat(const Mat& input);
+    static Mat makeInputMat(ConstMatRef input);
     
 		
     Layer(std::pair<int_t, int_t> _input_shape,
 	  int_t _output_size,
 	  const std::function<double(double)>& _activation=NN::ACTIVATIONS["relu"],
-	  const std::function<Vec(std::pair<Vec, Vec>)>
+	  const std::function<Mat(std::pair<ConstMatRef,ConstMatRef>)>&
 	  _activation_grad=NN::ACTIVATION_DERIVATIVES["relu"]) :
       input_shape(_input_shape),
       output_size(_output_size),
@@ -134,7 +136,7 @@ namespace NN
 	  int_t _output_size,
 	  const Mat& _weights,
 	  const std::function<double(double)>& _activation=NN::ACTIVATIONS["relu"],
-	  const std::function<Vec(std::pair<Vec, Vec>)>
+	  std::function<Mat(std::pair<ConstMatRef,ConstMatRef>)>
 	  _activation_grad=NN::ACTIVATION_DERIVATIVES["relu"])  :
       input_shape(std::make_pair(_inputs.rows(), _inputs.cols())),
       output_size(_output_size),
@@ -195,7 +197,7 @@ namespace NN
       output_size = _num_outputs;
     }
 
-    void setInputs(const Mat& _inputs, bool usemakeInputMat=true);
+    void setInputs(ConstMatRef _inputs, bool usemakeInputMat=true);
 
 
     Mat getJacobian() const
@@ -224,7 +226,7 @@ namespace NN
 
     void setActivation(std::string actName);
 
-    void forwardPass(const Mat& inputData);
+    void forwardPass(ConstMatRef inputData);
 
     void forwardPass();
 
@@ -240,7 +242,7 @@ namespace NN
     void backwardPass(const Layer& next) noexcept;
     
 
-    void backwardPass(const Mat& loss_grad) noexcept;
+    void backwardPass(ConstMatRef loss_grad) noexcept;
 
     void updateWeights();
 
